@@ -17,15 +17,13 @@ dispositivo = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 tokenizador = BertTokenizer.from_pretrained(
     'neuralmind/bert-base-portuguese-cased')
 
+
 # Função simples para carregar os dados
-
-
 def carregar_dados(caminho_arquivo):
     return pd.read_json(caminho_arquivo, lines=True)
 
+
 # Classe simples de Dataset
-
-
 class PunDataset(Dataset):
     def __init__(self, textos, etiquetas, tokenizador, tam_max):
         self.codificacoes = tokenizador(
@@ -47,9 +45,8 @@ class PunDataset(Dataset):
         item['etiquetas'] = self.etiquetas[idx]
         return item
 
+
 # Função para criar o DataLoader
-
-
 def criar_data_loader(df, tokenizador, tam_max, tam_lote):
     ds = PunDataset(
         textos=df['text'],
@@ -59,9 +56,8 @@ def criar_data_loader(df, tokenizador, tam_max, tam_lote):
     )
     return DataLoader(ds, batch_size=tam_lote)
 
+
 # Função de treino básica
-
-
 def treinar_epoca(modelo, data_loader, otimizador, dispositivo):
     modelo.train()
     perdas = []
@@ -87,9 +83,8 @@ def treinar_epoca(modelo, data_loader, otimizador, dispositivo):
 
     return predicoes_corretas / len(data_loader.dataset), np.mean(perdas)
 
+
 # Função de avaliação
-
-
 def avaliar_modelo(modelo, data_loader, dispositivo):
     modelo.eval()
     predicoes_corretas = 0
@@ -111,9 +106,8 @@ def avaliar_modelo(modelo, data_loader, dispositivo):
 
     return predicoes_corretas / len(data_loader.dataset), np.mean(perdas)
 
+
 # Função para previsões
-
-
 def prever(modelo, data_loader, dispositivo):
     modelo.eval()
     predicoes = []
@@ -133,9 +127,8 @@ def prever(modelo, data_loader, dispositivo):
 
     return predicoes, valores_reais
 
+
 # Função para criar o arquivo de submissão
-
-
 def criar_arquivo_submissao(df_teste, predicoes):
     submissao_df = pd.DataFrame({'id': df_teste['id'], 'label': predicoes})
     submissao_df.to_csv('submission.csv', index=False)
