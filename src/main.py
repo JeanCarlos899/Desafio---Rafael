@@ -150,8 +150,8 @@ if __name__ == "__main__":
     valor após testar diferentes tamanhos de lote e observar o desempenho do
     modelo.
 
-    TAM_MAX - Após a análise dos comprimentos dos textos, que nos trouxe os seguintes 
-    resultados:
+    TAM_MAX - Após a análise dos comprimentos dos tokens gerados pelo BertTokenizer, 
+    obtivemos os seguintes resultados:
 
         Comprimento mínimo: 9 tokens
         Comprimento máximo: 54 tokens
@@ -174,6 +174,7 @@ if __name__ == "__main__":
     TAXA_APRENDIZADO - A taxa de aprendizado foi definida como 2e-5. Esse valor
     foi escolhido após testar diferentes valores e observar o desempenho do modelo.
     '''
+    
     TAM_LOTE = 32
     TAM_MAX = 40
     EPOCAS = 1
