@@ -1,199 +1,188 @@
-import torch.cuda.amp as amp
 import torch
 from torch.utils.data import DataLoader, Dataset
-from transformers import BertTokenizer, BertForSequenceClassification, AdamW, get_linear_schedule_with_warmup
+from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from sklearn.metrics import classification_report
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import warnings
 
-# Suppress unnecessary warnings
+# Suprimir avisos desnecessários
 warnings.filterwarnings("ignore")
 
-# Check if GPU is available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Verificar se a GPU está disponível
+dispositivo = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load the BERTimbau tokenizer
-tokenizer = BertTokenizer.from_pretrained(
+# Carregar o tokenizador do BERTimbau
+tokenizador = BertTokenizer.from_pretrained(
     'neuralmind/bert-base-portuguese-cased')
 
-# Function to load data
+# Função simples para carregar os dados
 
 
-def load_data(file_path):
-    return pd.read_json(file_path, lines=True)
+def carregar_dados(caminho_arquivo):
+    return pd.read_json(caminho_arquivo, lines=True)
 
-# Custom Dataset class for PyTorch
+# Classe simples de Dataset
 
 
 class PunDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, max_len):
-        self.encodings = tokenizer(
-            texts.tolist(),
+    def __init__(self, textos, etiquetas, tokenizador, tam_max):
+        self.codificacoes = tokenizador(
+            textos.tolist(),
             truncation=True,
             padding='max_length',
-            max_length=max_len,
+            max_length=tam_max,
             return_tensors='pt'
         )
-        self.labels = torch.tensor(labels) if labels is not None else torch.zeros(
-            len(texts), dtype=torch.long)
+        self.etiquetas = torch.tensor(etiquetas) if etiquetas is not None else torch.zeros(
+            len(textos), dtype=torch.long)
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.etiquetas)
 
     def __getitem__(self, idx):
-        item = {key: tensor[idx] for key, tensor in self.encodings.items()}
-        item['labels'] = self.labels[idx]
+        item = {chave: tensor[idx]
+                for chave, tensor in self.codificacoes.items()}
+        item['etiquetas'] = self.etiquetas[idx]
         return item
 
-# Function to create DataLoader
+# Função para criar o DataLoader
 
 
-def create_data_loader(df, tokenizer, max_len, batch_size):
+def criar_data_loader(df, tokenizador, tam_max, tam_lote):
     ds = PunDataset(
-        texts=df['text'],
-        labels=df['label'] if 'label' in df else None,
-        tokenizer=tokenizer,
-        max_len=max_len
+        textos=df['text'],
+        etiquetas=df['label'] if 'label' in df else None,
+        tokenizador=tokenizador,
+        tam_max=tam_max
     )
-    return DataLoader(ds, batch_size=batch_size, num_workers=4, pin_memory=True)
+    return DataLoader(ds, batch_size=tam_lote)
 
-# Function to train the model with mixed precision
-
-
-def train_epoch(model, data_loader, optimizer, scheduler, scaler, device):
-    model.train()
-    losses = []
-    correct_predictions = 0
-
-    for batch in tqdm(data_loader, desc="Training"):
-        input_ids = batch["input_ids"].to(device, non_blocking=True)
-        attention_mask = batch["attention_mask"].to(device, non_blocking=True)
-        labels = batch["labels"].to(device, non_blocking=True)
-
-        optimizer.zero_grad()
-
-        # Using autocast for mixed precision operations
-        with torch.autocast(device_type='cuda', dtype=torch.float16):
-            outputs = model(input_ids=input_ids,
-                            attention_mask=attention_mask, labels=labels)
-            loss = outputs.loss
-            preds = torch.argmax(outputs.logits, dim=1)
-
-        correct_predictions += (preds == labels).sum().item()
-        losses.append(loss.item())
-
-        # Backward pass and optimizer update using scaler for mixed precision
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
-
-    scheduler.step()
-    return correct_predictions / len(data_loader.dataset), np.mean(losses)
-
-# Function to evaluate the model
+# Função de treino básica
 
 
-def eval_model(model, data_loader, device):
-    model.eval()
-    correct_predictions = 0
-    losses = []
+def treinar_epoca(modelo, data_loader, otimizador, dispositivo):
+    modelo.train()
+    perdas = []
+    predicoes_corretas = 0
+
+    for lote in tqdm(data_loader, desc="Treinando"):
+        input_ids = lote["input_ids"].to(dispositivo)
+        attention_mask = lote["attention_mask"].to(dispositivo)
+        etiquetas = lote["etiquetas"].to(dispositivo)
+
+        otimizador.zero_grad()
+
+        saidas = modelo(input_ids=input_ids,
+                        attention_mask=attention_mask, labels=etiquetas)
+        perda = saidas.loss
+        predicoes = torch.argmax(saidas.logits, dim=1)
+
+        predicoes_corretas += (predicoes == etiquetas).sum().item()
+        perdas.append(perda.item())
+
+        perda.backward()
+        otimizador.step()
+
+    return predicoes_corretas / len(data_loader.dataset), np.mean(perdas)
+
+# Função de avaliação
+
+
+def avaliar_modelo(modelo, data_loader, dispositivo):
+    modelo.eval()
+    predicoes_corretas = 0
+    perdas = []
 
     with torch.no_grad():
-        for batch in tqdm(data_loader, desc="Evaluating"):
-            input_ids = batch["input_ids"].to(device, non_blocking=True)
-            attention_mask = batch["attention_mask"].to(
-                device, non_blocking=True)
-            labels = batch["labels"].to(device, non_blocking=True)
+        for lote in tqdm(data_loader, desc="Avaliando"):
+            input_ids = lote["input_ids"].to(dispositivo)
+            attention_mask = lote["attention_mask"].to(dispositivo)
+            etiquetas = lote["etiquetas"].to(dispositivo)
 
-            outputs = model(input_ids=input_ids,
-                            attention_mask=attention_mask, labels=labels)
-            loss = outputs.loss
-            preds = torch.argmax(outputs.logits, dim=1)
+            saidas = modelo(input_ids=input_ids,
+                            attention_mask=attention_mask, labels=etiquetas)
+            perda = saidas.loss
+            predicoes = torch.argmax(saidas.logits, dim=1)
 
-            correct_predictions += (preds == labels).sum().item()
-            losses.append(loss.item())
+            predicoes_corretas += (predicoes == etiquetas).sum().item()
+            perdas.append(perda.item())
 
-    return correct_predictions / len(data_loader.dataset), np.mean(losses)
+    return predicoes_corretas / len(data_loader.dataset), np.mean(perdas)
 
-# Function for prediction
+# Função para previsões
 
 
-def predict(model, data_loader, device):
-    model.eval()
-    predictions = []
-    real_values = []
+def prever(modelo, data_loader, dispositivo):
+    modelo.eval()
+    predicoes = []
+    valores_reais = []
 
     with torch.no_grad():
-        for batch in tqdm(data_loader, desc="Making Predictions"):
-            input_ids = batch["input_ids"].to(device, non_blocking=True)
-            attention_mask = batch["attention_mask"].to(
-                device, non_blocking=True)
-            labels = batch["labels"].to(device, non_blocking=True)
+        for lote in tqdm(data_loader, desc="Fazendo Previsões"):
+            input_ids = lote["input_ids"].to(dispositivo)
+            attention_mask = lote["attention_mask"].to(dispositivo)
+            etiquetas = lote["etiquetas"].to(dispositivo)
 
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-            preds = torch.argmax(outputs.logits, dim=1)
+            saidas = modelo(input_ids=input_ids, attention_mask=attention_mask)
+            predicoes_lote = torch.argmax(saidas.logits, dim=1)
 
-            predictions.extend(preds.cpu().numpy())
-            real_values.extend(labels.cpu().numpy())
+            predicoes.extend(predicoes_lote.cpu().numpy())
+            valores_reais.extend(etiquetas.cpu().numpy())
 
-    return predictions, real_values
+    return predicoes, valores_reais
 
-# Function to create the submission file
-
-
-def create_submission_file(df_test, predictions):
-    submission_df = pd.DataFrame({'id': df_test['id'], 'label': predictions})
-    submission_df.to_csv('submission.csv', index=False)
+# Função para criar o arquivo de submissão
 
 
-# Main block to ensure multiprocessing works correctly
+def criar_arquivo_submissao(df_teste, predicoes):
+    submissao_df = pd.DataFrame({'id': df_teste['id'], 'label': predicoes})
+    submissao_df.to_csv('submissao.csv', index=False)
+
+
+# Parte principal do código
 if __name__ == "__main__":
-    model = BertForSequenceClassification.from_pretrained(
+    modelo = BertForSequenceClassification.from_pretrained(
         'neuralmind/bert-base-portuguese-cased', num_labels=2)
-    model.to(device)  # type: ignore
+    modelo.to(dispositivo)
 
-    df_train = load_data('train.jsonl')
-    df_val = load_data('validation.jsonl')
+    df_treino = carregar_dados('train.jsonl')
+    df_validacao = carregar_dados('validation.jsonl')
 
-    BATCH_SIZE = 32
-    MAX_LEN = 40
-    EPOCHS = 1
-    LEARNING_RATE = 2e-5
+    TAM_LOTE = 32
+    TAM_MAX = 40
+    EPOCAS = 1
+    TAXA_APRENDIZADO = 2e-5
 
-    train_data_loader = create_data_loader(
-        df_train, tokenizer, MAX_LEN, BATCH_SIZE)
-    val_data_loader = create_data_loader(
-        df_val, tokenizer, MAX_LEN, BATCH_SIZE)
+    data_loader_treino = criar_data_loader(
+        df_treino, tokenizador, TAM_MAX, TAM_LOTE)
+    data_loader_validacao = criar_data_loader(
+        df_validacao, tokenizador, TAM_MAX, TAM_LOTE)
 
-    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=0.01)
+    otimizador = AdamW(modelo.parameters(), lr=TAXA_APRENDIZADO)
 
-    total_steps = len(train_data_loader) * EPOCHS
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=0, num_training_steps=total_steps
-    )
+    for epoca in range(EPOCAS):
+        print(f'Época {epoca + 1}/{EPOCAS}')
+        acc_treino, perda_treino = treinar_epoca(
+            modelo, data_loader_treino, otimizador, dispositivo)
+        acc_validacao, perda_validacao = avaliar_modelo(
+            modelo, data_loader_validacao, dispositivo)
 
-    scaler = amp.GradScaler()
+        print(
+            f'Perda Treino: {perda_treino:.4f} | Acurácia Treino: {acc_treino:.4f}')
+        print(
+            f'Perda Validação: {perda_validacao:.4f} | Acurácia Validação: {acc_validacao:.4f}')
 
-    for epoch in range(EPOCHS):
-        print(f'Epoch {epoch + 1}/{EPOCHS}')
-        train_acc, train_loss = train_epoch(
-            model, train_data_loader, optimizer, scheduler, scaler, device)
-        val_acc, val_loss = eval_model(model, val_data_loader, device)
+    previsoes_validacao, etiquetas_validacao = prever(
+        modelo, data_loader_validacao, dispositivo)
+    print("\nRelatório de Classificação (Conjunto de Validação):")
+    print(classification_report(etiquetas_validacao, previsoes_validacao))
 
-        print(f'Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f}')
-        print(f'Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f}')
+    df_teste = pd.read_csv('test.csv')
+    data_loader_teste = criar_data_loader(
+        df_teste, tokenizador, TAM_MAX, TAM_LOTE)
+    previsoes_teste, _ = prever(modelo, data_loader_teste, dispositivo)
 
-    val_preds, val_labels = predict(model, val_data_loader, device)
-    print("\nClassification Report (Validation Set):")
-    print(classification_report(val_labels, val_preds))
-
-    df_test = pd.read_csv('test.csv')
-    test_data_loader = create_data_loader(
-        df_test, tokenizer, MAX_LEN, BATCH_SIZE)
-    test_preds, _ = predict(model, test_data_loader, device)
-
-    create_submission_file(df_test, test_preds)
-    print("Submission file generated: submission.csv")
+    criar_arquivo_submissao(df_teste, previsoes_teste)
+    print("Arquivo de submissão gerado: submission.csv")
