@@ -138,7 +138,7 @@ def prever(modelo, data_loader, dispositivo):
 
 def criar_arquivo_submissao(df_teste, predicoes):
     submissao_df = pd.DataFrame({'id': df_teste['id'], 'label': predicoes})
-    submissao_df.to_csv('submissao.csv', index=False)
+    submissao_df.to_csv('submission.csv', index=False)
 
 
 # Parte principal do código
@@ -147,8 +147,8 @@ if __name__ == "__main__":
         'neuralmind/bert-base-portuguese-cased', num_labels=2)
     modelo.to(dispositivo)
 
-    df_treino = carregar_dados('train.jsonl')
-    df_validacao = carregar_dados('validation.jsonl')
+    df_treino = carregar_dados('corpus/train.jsonl')
+    df_validacao = carregar_dados('corpus/validation.jsonl')
 
     TAM_LOTE = 32
     TAM_MAX = 40
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     print("\nRelatório de Classificação (Conjunto de Validação):")
     print(classification_report(etiquetas_validacao, previsoes_validacao))
 
-    df_teste = pd.read_csv('test.csv')
+    df_teste = pd.read_csv('corpus/test.csv')
     data_loader_teste = criar_data_loader(
         df_teste, tokenizador, TAM_MAX, TAM_LOTE)
     previsoes_teste, _ = prever(modelo, data_loader_teste, dispositivo)

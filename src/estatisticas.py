@@ -20,7 +20,7 @@ def load_data(file_path):
 
 
 # Carregamento do conjunto de treinamento
-df_train = load_data('train.jsonl')
+df_train = load_data('corpus/train.jsonl')
 
 # Verifique se a coluna 'text' existe no dataframe
 if 'text' not in df_train.columns:
@@ -43,11 +43,13 @@ plt.grid(axis='y', alpha=0.75)
 plt.show()
 
 # Calcular estatísticas descritivas
+print()
 print("Estatísticas descritivas dos comprimentos dos textos:")
 print(f'Comprimento mínimo: {np.min(text_lengths)} tokens')
 print(f'Comprimento máximo: {np.max(text_lengths)} tokens')
 print(f'Comprimento médio: {np.mean(text_lengths):.2f} tokens')
 print(f'Mediana do comprimento: {np.median(text_lengths)} tokens')
+print()
 print(
     f'Comprimento no percentil 90%: {np.percentile(text_lengths, 90)} tokens')
 print(
