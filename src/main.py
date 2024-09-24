@@ -143,6 +143,37 @@ if __name__ == "__main__":
     df_treino = carregar_dados('corpus/train.jsonl')
     df_validacao = carregar_dados('corpus/validation.jsonl')
 
+    '''
+    TAM_LOTE - O tamanho do lote de dados que será processado a cada iteração
+    foi definido como 32. Esse valor foi escolhido para garantir que o modelo
+    seja treinado de forma eficiente sem consumir muita memória. Chegamos a este
+    valor após testar diferentes tamanhos de lote e observar o desempenho do
+    modelo.
+
+    TAM_MAX - Após a análise dos comprimentos dos textos, que nos trouxe os seguintes 
+    resultados:
+
+        Comprimento mínimo: 9 tokens
+        Comprimento máximo: 54 tokens
+        Comprimento médio: 19.73 tokens
+        Mediana do comprimento: 19.0 tokens
+        
+        Comprimento no percentil 90%: 27.0 tokens
+        Comprimento no percentil 95%: 30.0 tokens
+        Comprimento no percentil 99%: 38.0 tokens
+
+    Decidimos definir o tamanho máximo dos textos como 40 tokens para garantir
+    que a maioria dos textos seja coberta sem desperdiçar recursos computacionais.
+
+    EPOCAS - O número de épocas foi definido como 1. Esse valor foi escolhido
+    pois não obtivemos resultados relevantes ao aumentar o número de épocas. Até
+    chegamos a reduzir a taxa de aprendizado para evitar o overfitting em n 
+    épocas, mas obtivemos no máximo a mesma acurácia com apenas uma época em 
+    troca de um tempo de treinamento absurdamente maior.
+
+    TAXA_APRENDIZADO - A taxa de aprendizado foi definida como 2e-5. Esse valor
+    foi escolhido após testar diferentes valores e observar o desempenho do modelo.
+    '''
     TAM_LOTE = 32
     TAM_MAX = 40
     EPOCAS = 1
