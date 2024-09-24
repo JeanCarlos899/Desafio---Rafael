@@ -11,7 +11,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Verificar se a GPU está disponível
-dispositivo = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+hardware = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Carregar o tokenizador do BERTimbau
 tokenizador = BertTokenizer.from_pretrained(
@@ -58,15 +58,15 @@ def criar_data_loader(df, tokenizador, tam_max, tam_lote):
 
 
 # Função de treino básica
-def treinar_epoca(modelo, data_loader, otimizador, dispositivo):
+def treinar_epoca(modelo, data_loader, otimizador, hardware):
     modelo.train()
     perdas = []
     predicoes_corretas = 0
 
     for lote in tqdm(data_loader, desc="Treinando"):
-        input_ids = lote["input_ids"].to(dispositivo)
-        attention_mask = lote["attention_mask"].to(dispositivo)
-        etiquetas = lote["etiquetas"].to(dispositivo)
+        input_ids = lote["input_ids"].to(hardware)
+        attention_mask = lote["attention_mask"].to(hardware)
+        etiquetas = lote["etiquetas"].to(hardware)
 
         otimizador.zero_grad()
 
@@ -85,16 +85,16 @@ def treinar_epoca(modelo, data_loader, otimizador, dispositivo):
 
 
 # Função de avaliação
-def avaliar_modelo(modelo, data_loader, dispositivo):
+def avaliar_modelo(modelo, data_loader, hardware):
     modelo.eval()
     predicoes_corretas = 0
     perdas = []
 
     with torch.no_grad():
         for lote in tqdm(data_loader, desc="Avaliando"):
-            input_ids = lote["input_ids"].to(dispositivo)
-            attention_mask = lote["attention_mask"].to(dispositivo)
-            etiquetas = lote["etiquetas"].to(dispositivo)
+            input_ids = lote["input_ids"].to(hardware)
+            attention_mask = lote["attention_mask"].to(hardware)
+            etiquetas = lote["etiquetas"].to(hardware)
 
             saidas = modelo(input_ids=input_ids,
                             attention_mask=attention_mask, labels=etiquetas)
@@ -108,16 +108,16 @@ def avaliar_modelo(modelo, data_loader, dispositivo):
 
 
 # Função para previsões
-def prever(modelo, data_loader, dispositivo):
+def prever(modelo, data_loader, hardware):
     modelo.eval()
     predicoes = []
     valores_reais = []
 
     with torch.no_grad():
         for lote in tqdm(data_loader, desc="Fazendo Previsões"):
-            input_ids = lote["input_ids"].to(dispositivo)
-            attention_mask = lote["attention_mask"].to(dispositivo)
-            etiquetas = lote["etiquetas"].to(dispositivo)
+            input_ids = lote["input_ids"].to(hardware)
+            attention_mask = lote["attention_mask"].to(hardware)
+            etiquetas = lote["etiquetas"].to(hardware)
 
             saidas = modelo(input_ids=input_ids, attention_mask=attention_mask)
             predicoes_lote = torch.argmax(saidas.logits, dim=1)
@@ -138,7 +138,7 @@ def criar_arquivo_submissao(df_teste, predicoes):
 if __name__ == "__main__":
     modelo = BertForSequenceClassification.from_pretrained(
         'neuralmind/bert-base-portuguese-cased', num_labels=2)
-    modelo.to(dispositivo)
+    modelo.to(hardware)
 
     df_treino = carregar_dados('corpus/train.jsonl')
     df_validacao = carregar_dados('corpus/validation.jsonl')
@@ -158,9 +158,9 @@ if __name__ == "__main__":
     for epoca in range(EPOCAS):
         print(f'Época {epoca + 1}/{EPOCAS}')
         acc_treino, perda_treino = treinar_epoca(
-            modelo, data_loader_treino, otimizador, dispositivo)
+            modelo, data_loader_treino, otimizador, hardware)
         acc_validacao, perda_validacao = avaliar_modelo(
-            modelo, data_loader_validacao, dispositivo)
+            modelo, data_loader_validacao, hardware)
 
         print(
             f'Perda Treino: {perda_treino:.4f} | Acurácia Treino: {acc_treino:.4f}')
@@ -168,14 +168,14 @@ if __name__ == "__main__":
             f'Perda Validação: {perda_validacao:.4f} | Acurácia Validação: {acc_validacao:.4f}')
 
     previsoes_validacao, etiquetas_validacao = prever(
-        modelo, data_loader_validacao, dispositivo)
+        modelo, data_loader_validacao, hardware)
     print("\nRelatório de Classificação (Conjunto de Validação):")
     print(classification_report(etiquetas_validacao, previsoes_validacao))
 
     df_teste = pd.read_csv('corpus/test.csv')
     data_loader_teste = criar_data_loader(
         df_teste, tokenizador, TAM_MAX, TAM_LOTE)
-    previsoes_teste, _ = prever(modelo, data_loader_teste, dispositivo)
+    previsoes_teste, _ = prever(modelo, data_loader_teste, hardware)
 
     criar_arquivo_submissao(df_teste, previsoes_teste)
     print("Arquivo de submissão gerado: submission.csv")
