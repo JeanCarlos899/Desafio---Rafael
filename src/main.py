@@ -1,9 +1,11 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from tqdm import tqdm
 import warnings
 
@@ -127,11 +129,33 @@ def prever(modelo, data_loader, hardware):
 
     return predicoes, valores_reais
 
-
 # Função para criar o arquivo de submissão
+
+
 def criar_arquivo_submissao(df_teste, predicoes):
     submissao_df = pd.DataFrame({'id': df_teste['id'], 'label': predicoes})
     submissao_df.to_csv('submission.csv', index=False)
+
+
+# Função para plotar a matriz de confusão
+def plotar_matriz_confusao(valores_reais, previsoes):
+    matriz_confusao = confusion_matrix(y_true=valores_reais, y_pred=previsoes)
+    vn, fp, fn, vp = matriz_confusao.ravel()
+    matriz_customizada = [[vp, fp], [fn, vn]]
+
+    print(f'Verdadeiros Negativos: {vn}')
+    print(f'Falsos Positivos: {fp}')
+    print(f'Falsos Negativos: {fn}')
+    print(f'Verdadeiros Positivos: {vp}')
+
+    sns.heatmap(matriz_customizada, annot=True, cmap="Blues", fmt='g',
+                xticklabels=['Trocadilho', 'Não trocadilho'],
+                yticklabels=['Trocadilho', 'Não trocadilho'])
+
+    plt.xlabel('Classificação real')
+    plt.ylabel('Classificação prevista')
+    plt.title('Matriz de Confusão')
+    plt.show()
 
 
 # Parte principal do código
@@ -203,6 +227,9 @@ if __name__ == "__main__":
         modelo, data_loader_validacao, hardware)
     print("\nRelatório de Classificação (Conjunto de Validação):")
     print(classification_report(etiquetas_validacao, previsoes_validacao))
+
+    # Plotando a matriz de confusão após a avaliação do modelo
+    plotar_matriz_confusao(etiquetas_validacao, previsoes_validacao)
 
     df_teste = pd.read_csv('corpus/test.csv')
     data_loader_teste = criar_data_loader(
