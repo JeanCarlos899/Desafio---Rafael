@@ -157,13 +157,13 @@ if __name__ == "__main__":
         Comprimento máximo: 54 tokens
         Comprimento médio: 19.73 tokens
         Mediana do comprimento: 19.0 tokens
-        
+
         Comprimento no percentil 90%: 27.0 tokens
         Comprimento no percentil 95%: 30.0 tokens
         Comprimento no percentil 99%: 38.0 tokens
 
-    Decidimos definir o tamanho máximo dos textos como 40 tokens para garantir
-    que a maioria dos textos seja coberta sem desperdiçar recursos computacionais.
+    Decidimos definir o tamanho máximo dos textos como 54 tokens para garantir
+    que todos dos textos sejam cobertos sem desperdiçar recursos computacionais.
 
     EPOCAS - O número de épocas foi definido como 1. Esse valor foi escolhido
     pois não obtivemos resultados relevantes ao aumentar o número de épocas. Até
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     '''
     
     TAM_LOTE = 32
-    TAM_MAX = 40
+    TAM_MAX = 54
     EPOCAS = 1
     TAXA_APRENDIZADO = 2e-5
 
