@@ -143,11 +143,6 @@ def plotar_matriz_confusao(valores_reais, previsoes):
     vn, fp, fn, vp = matriz_confusao.ravel()
     matriz_customizada = [[vp, fp], [fn, vn]]
 
-    print(f'Verdadeiros Negativos: {vn}')
-    print(f'Falsos Positivos: {fp}')
-    print(f'Falsos Negativos: {fn}')
-    print(f'Verdadeiros Positivos: {vp}')
-
     sns.heatmap(matriz_customizada, annot=True, cmap="Blues", fmt='g',
                 xticklabels=['Trocadilho', 'Não trocadilho'],
                 yticklabels=['Trocadilho', 'Não trocadilho'])
